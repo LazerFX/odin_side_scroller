@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        // Linux / Mac configs
+        {
+            "type": "lldb",
+            "request": "launch",
+            "preLaunchTask": "Build Hot Reload",
+            "name": "Run Hot Reload (Linux / Mac)",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/game_hot_reload.bin",
+        },
+    ]
+}
