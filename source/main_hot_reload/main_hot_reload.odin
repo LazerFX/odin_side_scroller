@@ -32,6 +32,7 @@ copy_dll :: proc(to: string) -> bool {
 }
 
 Game_API :: struct {
+    last_check_time:    time.Time,
     modification_time:  time.Time,
     api_version:        int,
 
@@ -43,6 +44,7 @@ Game_API :: struct {
     init:               proc(),
     hot_reload:         proc(mem: rawptr),
     memory:             proc() -> rawptr,
+    memory_size:        proc() -> int,
     should_run:         proc() -> bool,
     shutdown:           proc(),
     shutdown_window:    proc(),
@@ -124,7 +126,9 @@ main :: proc() {
                 break gameloop
             }
 
-            if force_restart {
+            mem_size_different := game_api.memory_size() != new_game_api.memory_size()
+
+            if force_restart || mem_size_different {
                 do_restart(&tracking_allocator, &old_game_apis, &game_api, &new_game_api)
             } else if reload {
                 do_reload(&old_game_apis, &game_api, &new_game_api)
@@ -173,7 +177,7 @@ do_restart :: proc(tracking_allocator: ^mem.Tracking_Allocator, old_game_apis: ^
         err := false
 
         for _, value in a.allocation_map {
-            log.error("%v: Leaked %v bytes\n", value.location, value.size)
+            log.errorf("%v: Leaked %v bytes\n", value.location, value.size)
             err = true
         }
 
@@ -192,10 +196,14 @@ check_for_reload :: proc(game_api: ^Game_API) -> (force_restart: bool, reload: b
     force_reload := game_api.force_reload()
     force_restart = game_api.force_restart()
     reload = force_reload || force_restart
-    game_dll_mod, game_dll_mod_err := os.last_write_time_by_name(GAME_DLL_PATH)
 
-    if game_dll_mod_err == os.ERROR_NONE && game_api.modification_time != game_dll_mod {
-        reload = true
+    if time.duration_seconds(time.diff(game_api.last_check_time, time.now())) > 1 {
+        game_api.last_check_time = time.now()
+        game_dll_mod, game_dll_mod_err := os.last_write_time_by_name(GAME_DLL_PATH)
+
+        if game_dll_mod_err == os.ERROR_NONE && game_api.modification_time != game_dll_mod {
+            reload = true
+        }
     }
 
     return force_restart, reload
