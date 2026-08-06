@@ -69,7 +69,7 @@ game_init :: proc() {
 
     mem^ = Memory {
         Continue_Running    = true,
-        Particles           = make([dynamic]Particle, 5000),
+        Particles           = make([dynamic]Particle, 10000),
     }
 
     game_hot_reloaded(mem)
@@ -86,6 +86,8 @@ game_init_window :: proc() {
 
 @(export)
 game_shutdown :: proc() {
+    delete(mem.Particles)
+    mem.Particles = nil
     free(mem)
 }
 
@@ -107,6 +109,7 @@ game_memory :: proc() -> rawptr {
     return mem
 }
 
+@(export)
 game_memory_size :: proc() -> int {
     return size_of(Memory)
 }

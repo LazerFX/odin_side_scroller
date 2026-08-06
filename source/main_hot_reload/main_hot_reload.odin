@@ -42,7 +42,7 @@ Game_API :: struct {
     force_restart:      proc() -> bool,
     init_window:        proc(),
     init:               proc(),
-    hot_reload:         proc(mem: rawptr),
+    hot_reloaded:       proc(mem: rawptr),
     memory:             proc() -> rawptr,
     memory_size:        proc() -> int,
     should_run:         proc() -> bool,
@@ -62,7 +62,7 @@ load_game_api :: proc(api_version: int) -> (api: Game_API, ok: bool) {
         return
     }
 
-    game_dll_name := get_game_api_file(api.api_version)
+    game_dll_name := get_game_api_file(api_version)
     copy_dll(game_dll_name) or_return
 
     _, ok = dynlib.initialize_symbols(&api, game_dll_name, "game_", "lib")
@@ -129,16 +129,21 @@ main :: proc() {
             mem_size_different := game_api.memory_size() != new_game_api.memory_size()
 
             if force_restart || mem_size_different {
-                do_restart(&tracking_allocator, &old_game_apis, &game_api, &new_game_api)
+                do_restart(&tracking_allocator, &old_game_apis, &new_game_api, &game_api)
             } else if reload {
                 do_reload(&old_game_apis, &game_api, &new_game_api)
             }
+            
+            game_api_version += 1
         }
 
         if len(tracking_allocator.bad_free_array) > 0 {
             for b in tracking_allocator.bad_free_array {
                 log.errorf("Bad free at: %v", b.location)
             }
+
+            libc.getchar()
+            panic("Bad free detected")
         }
     }
 
@@ -160,6 +165,7 @@ main :: proc() {
 }
 
 do_restart :: proc(tracking_allocator: ^mem.Tracking_Allocator, old_game_apis: ^[dynamic]Game_API, new_game_api: ^Game_API, game_api: ^Game_API) {
+    free_all(context.temp_allocator)
     game_api.shutdown()
     reset_tracking_allocator(&tracking_allocator^)
 
@@ -189,7 +195,7 @@ do_reload :: proc(old_game_apis: ^[dynamic]Game_API, game_api: ^Game_API, new_ga
     append(old_game_apis, game_api^)
     game_memory := game_api.memory()
     game_api^ = new_game_api^
-    game_api.hot_reload(game_memory)
+    game_api.hot_reloaded(game_memory)
 }
 
 check_for_reload :: proc(game_api: ^Game_API) -> (force_restart: bool, reload: bool) {
