@@ -4,6 +4,8 @@ import rl "vendor:raylib"
 
 mem: ^Memory
 
+GRAVITY :: 490
+
 /* 
  | ################################
  |
@@ -16,11 +18,39 @@ update := proc() {
     if rl.IsKeyPressed(.ESCAPE) {
         mem.Continue_Running = false
     }
+
+    if rl.IsMouseButtonPressed(.LEFT) {
+        burst(&mem.Particles, rl.GetMousePosition(), 1000)
+    }
 }
 
 draw := proc() {
     rl.BeginDrawing()
     rl.ClearBackground(rl.WHITE)
+
+    dt := rl.GetFrameTime()
+
+    for i in 0 ..< len(mem.Particles) {
+        particle            := &mem.Particles[i]
+        particle.life       -= dt
+        particle.velocity.y += GRAVITY * dt
+        particle.pos        += particle.velocity * dt
+    }
+
+    retain(
+        &mem.Particles,
+        proc(p: Particle) -> bool {
+            return p.life > 0
+        },
+    )
+
+    for particle in mem.Particles {
+        rl.DrawCircleV(
+            particle.pos,
+            particle.radius,
+            particle.color,
+        )
+    }
 
     rl.EndDrawing()
 }
@@ -39,7 +69,7 @@ game_init :: proc() {
 
     mem^ = Memory {
         Continue_Running    = true,
-        Player_Pos          = {1.0, 1.0},
+        Particles           = make([dynamic]Particle, 5000),
     }
 
     game_hot_reloaded(mem)

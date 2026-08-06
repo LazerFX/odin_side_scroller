@@ -1,9 +1,16 @@
 package side_scroller
 
-import rt "vendor:raylib"
+import rl "vendor:raylib"
 
 Memory :: struct {
-    Player_Pos:     rt.Vector2,
     Continue_Running:   bool,
+    Particles:          [dynamic]Particle,
 }
 
+Particle :: struct {
+    pos:        rl.Vector2,
+    velocity:   rl.Vector2,
+    color:      rl.Color,
+    radius:     f32,
+    life:       f32,
+}
