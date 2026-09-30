@@ -4,7 +4,7 @@ import rl "vendor:raylib"
 
 mem: ^Memory
 
-GRAVITY :: 490
+GRAVITY :: 0
 
 /* 
  | ################################
@@ -18,41 +18,37 @@ update := proc() {
     if rl.IsKeyPressed(.ESCAPE) {
         mem.Continue_Running = false
     }
-
-    if rl.IsMouseButtonPressed(.LEFT) {
-        burst(&mem.Particles, rl.GetMousePosition(), 1000)
+    if rl.IsKeyDown(rl.KeyboardKey.D) {
+        mem.Player_Velocity.x = 1
+    } else if rl.IsKeyDown(rl.KeyboardKey.A){ 
+        mem.Player_Velocity.x = -1
+    } else {
+        mem.Player_Velocity.x = 0
     }
+
+    mem.Player_Pos.x += mem.Player_Velocity.x
+    mem.Player_Pos.y += mem.Player_Velocity.y
 }
 
 draw := proc() {
     rl.BeginDrawing()
     rl.ClearBackground(rl.WHITE)
 
-    dt := rl.GetFrameTime()
-
-    for i in 0 ..< len(mem.Particles) {
-        particle            := &mem.Particles[i]
-        particle.life       -= dt
-        particle.velocity.y += GRAVITY * dt
-        particle.pos        += particle.velocity * dt
-    }
-
-    retain(
-        &mem.Particles,
-        proc(p: Particle) -> bool {
-            return p.life > 0
-        },
-    )
-
-    for particle in mem.Particles {
-        rl.DrawCircleV(
-            particle.pos,
-            particle.radius,
-            particle.color,
-        )
-    }
+    drawGround()
+    drawPlayer()
 
     rl.EndDrawing()
+}
+
+drawGround := proc() {
+    lineHeight := rl.GetRenderHeight() / 2
+    lineRight := rl.GetRenderWidth()
+    rl.DrawLine(0, lineHeight, lineRight, lineHeight, rl.BLACK)
+}
+
+drawPlayer := proc() {
+    rect := getRectPos(mem.Player_Pos.x, mem.Player_Pos.y, 10, 10)
+    rl.DrawRectangleRec(rect, rl.PINK)
 }
 
 /* 
@@ -67,9 +63,13 @@ draw := proc() {
 game_init :: proc() {
     mem = new(Memory)
 
+    posX := (f32)(rl.GetRenderWidth()) / 2
+    posY := (f32)(rl.GetRenderHeight()) / 2
+
     mem^ = Memory {
         Continue_Running    = true,
-        Particles           = make([dynamic]Particle, 10000),
+        Player_Pos          = { posX, posY },
+        Player_Velocity     = { 0, 0 },
     }
 
     game_hot_reloaded(mem)
@@ -86,8 +86,6 @@ game_init_window :: proc() {
 
 @(export)
 game_shutdown :: proc() {
-    delete(mem.Particles)
-    mem.Particles = nil
     free(mem)
 }
 
